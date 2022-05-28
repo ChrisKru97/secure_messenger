@@ -4,9 +4,11 @@ import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:messenger/components/custom_icon_button.dart';
 import 'package:messenger/consts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class PhotoScreen extends StatefulWidget {
   const PhotoScreen({Key? key}) : super(key: key);
@@ -54,13 +56,17 @@ class _PhotoScreenState extends State<PhotoScreen> {
   }
 
   void capturePicture() async {
+    final pin = getPin();
+    if (pin == null) return;
     final file = await controller.takePicture();
     setState(() {
       uploading = true;
     });
     final bytes = await file.readAsBytes();
-    final encrypted = encryptBytes(bytes);
+    final encrypted = await compute(encryptBytes, BytesWithPin(bytes, pin));
     final task = storage.ref().child(file.name).putData(encrypted);
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setString(file.name, base64Encode(encrypted));
     task.whenComplete(() async {
       await db.collection("messages").add({
         'time': FieldValue.serverTimestamp(),
@@ -76,12 +82,19 @@ class _PhotoScreenState extends State<PhotoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (uploading || !initialized || !controller.value.isInitialized) {
+    if (uploaded) {
+      Future.delayed(const Duration(milliseconds: 250), () {
+        Navigator.pop(context);
+      });
+    }
+    if (uploading ||
+        uploaded ||
+        !initialized ||
+        !controller.value.isInitialized) {
       return Container(
           color: Colors.white,
           child: const Center(child: CircularProgressIndicator()));
     }
-    if (uploaded) Navigator.pop(context);
     return Scaffold(
       body: SafeArea(
         child: Column(

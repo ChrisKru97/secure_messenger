@@ -11,6 +11,10 @@ class FullImage extends StatelessWidget {
     return Scaffold(
         body: SafeArea(
             child: Center(
-                child: Hero(tag: imageUrl, child: Image.memory(imageData)))));
+                child: Hero(
+                    tag: imageUrl,
+                    child: Image.memory(
+                      imageData,
+                    )))));
   }
 }

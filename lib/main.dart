@@ -146,7 +146,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     if (!unlocked) {
       return KeyInput((String key) {
-        setKey(key);
+        setPin(key);
         setState(() {
           unlocked = true;
         });
@@ -158,7 +158,7 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
       child: Scaffold(
           body: SafeArea(
         child: Column(
-          children: [Expanded(child: MessageList()), MessageInput()],
+          children: const [Expanded(child: MessageList()), MessageInput()],
         ),
       )),
     );

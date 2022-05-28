@@ -1,8 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:messenger/components/custom_image.dart';
-import 'package:messenger/consts.dart';
+import 'package:messenger/components/encrypted_image.dart';
+import 'package:messenger/components/encrypted_text.dart';
 
 class MessageBubble extends StatelessWidget {
   MessageBubble(this.data, {Key? key}) : super(key: key);
@@ -22,7 +22,8 @@ class MessageBubble extends StatelessWidget {
     final time =
         "${timestamp.hour.toString().padLeft(2, "0")}:${timestamp.minute.toString().padLeft(2, "0")}";
     return Padding(
-      padding: EdgeInsets.only(left: isAuthor ? 0 : 50, right: isAuthor ? 50 : 0),
+      padding:
+          EdgeInsets.only(left: isAuthor ? 0 : 50, right: isAuthor ? 50 : 0),
       child: Container(
           decoration: BoxDecoration(
               color: Colors.green[100],
@@ -31,12 +32,11 @@ class MessageBubble extends StatelessWidget {
           child: Column(
             children: [
               if (text != null)
-                Align(
-                    alignment: Alignment.topLeft,
-                    child: Text(decrypt(text),
-                        style: const TextStyle(fontSize: 20))),
+                Align(alignment: Alignment.topLeft, child: EncryptedText(text)),
               if (imageUrl != null)
-                Align(alignment: Alignment.center, child: CustomImage(imageUrl)),
+                Align(
+                    alignment: Alignment.center,
+                    child: EncryptedImage(imageUrl)),
               Align(
                   alignment: Alignment.bottomRight,
                   child: Padding(

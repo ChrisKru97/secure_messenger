@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:messenger/components/custom_icon_button.dart';
 import 'package:messenger/components/photo_button.dart';
@@ -18,6 +19,7 @@ class _MessageInputState extends State<MessageInput> {
   final TextEditingController textEditingController = TextEditingController();
   final FocusNode focusNode = FocusNode();
   bool photoIsVisible = true;
+  bool sendInProgress = false;
 
   @override
   void initState() {
@@ -39,14 +41,25 @@ class _MessageInputState extends State<MessageInput> {
   }
 
   void onSend() async {
-    if (textEditingController.value.text.isEmpty) return;
-    final encrypted = encrypt(textEditingController.value.text.trim());
+    final pin = getPin();
+    if (pin == null ||
+        textEditingController.value.text.isEmpty ||
+        sendInProgress) return;
+    final textValue = textEditingController.value.text.trim();
+    textEditingController.clear();
+    setState(() {
+      sendInProgress = true;
+    });
+    final encrypted = await compute(encrypt, Base64WithPin(textValue, pin));
     await db.collection("messages").add({
       'time': FieldValue.serverTimestamp(),
       'text': encrypted,
       'author': auth.currentUser?.uid,
     });
-    textEditingController.clear();
+    setState(() {
+      sendInProgress = false;
+    });
+    focusNode.requestFocus();
   }
 
   @override
@@ -67,7 +80,8 @@ class _MessageInputState extends State<MessageInput> {
                 child: Padding(
               padding: const EdgeInsets.only(right: 16),
               child: TextField(
-                style:const TextStyle(fontSize: 18),
+                style: const TextStyle(fontSize: 18),
+                enabled: !sendInProgress,
                 focusNode: focusNode,
                 controller: textEditingController,
                 minLines: 1,
@@ -75,13 +89,15 @@ class _MessageInputState extends State<MessageInput> {
               ),
             )),
             if (photoIsVisible)
-              Padding(
-                  padding: const EdgeInsets.only(right: 16),
-                  child: PhotoButton()),
-            CustomIconButton(() {
-              FocusScope.of(context).unfocus();
-              onSend();
-            }, Icons.send)
+              const Padding(
+                  padding: EdgeInsets.only(right: 16), child: PhotoButton()),
+            if (sendInProgress)
+              const CircularProgressIndicator()
+            else
+              CustomIconButton(() {
+                FocusScope.of(context).unfocus();
+                onSend();
+              }, Icons.send)
           ],
         ));
   }

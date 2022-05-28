@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:messenger/components/custom_icon_button.dart';
 
 class KeyInput extends StatefulWidget {
-  KeyInput(this.setKey, {Key? key}) : super(key: key);
+  const KeyInput(this.setKey, {Key? key}) : super(key: key);
   final void Function(String) setKey;
 
   @override
@@ -12,11 +12,20 @@ class KeyInput extends StatefulWidget {
 class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
   final TextEditingController textEditingController = TextEditingController();
   final FocusNode focusNode = FocusNode();
+  String? keyToSubmit;
 
   void focus() {
     Future.delayed(const Duration(milliseconds: 250), () {
       focusNode.requestFocus();
     });
+  }
+
+  @override
+  void didChangeMetrics() {
+    final value = WidgetsBinding.instance.window.viewInsets.bottom;
+    if (value == 0 && keyToSubmit?.isNotEmpty == true) {
+      widget.setKey(keyToSubmit!);
+    }
   }
 
   @override
@@ -29,6 +38,7 @@ class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    focus();
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -40,7 +50,11 @@ class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
 
   void onSubmitText(String text) {
     if (text.isNotEmpty) {
-      widget.setKey(text);
+      focusNode.unfocus();
+      textEditingController.clear();
+      setState(() {
+        keyToSubmit = text;
+      });
     }
   }
 
@@ -50,7 +64,6 @@ class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    focus();
     return Scaffold(
         body: SafeArea(
             child: Align(
