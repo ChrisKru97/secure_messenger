@@ -1,13 +1,15 @@
-import * as functions from "firebase-functions";
-import * as admin from "firebase-admin";
-import { Notification } from "firebase-admin/lib/messaging/messaging-api";
+'use strict';
 
-const notification: Notification = {
+const admin = require('firebase-admin');
+const functions = require('firebase-functions');
+admin.initializeApp();
+
+const notification = {
   "title": "Překvápko!",
   "body": "Máte novou zprávu, zkontrolujte ji",
 };
 
-export const notify = functions
+exports.notify = functions
   .region("europe-central2")
   .firestore
   .document("messages_v2/{docId}")
@@ -20,10 +22,8 @@ export const notify = functions
       .get();
     const userTokens = users.docs.map((d) => d.data().token);
 
-    await Promise.all(userTokens.map((token) => (
-      admin.messaging().send({
-        notification,
-        token,
-      })
-    )));
+    await admin.messaging().sendEach(userTokens.map(token => ({
+      notification,
+      token,
+    })));
   });

@@ -22,14 +22,9 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
-  @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -80,16 +75,19 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
     try {
       userExists = (await db.collection('users').doc(uid).get()).exists;
     } catch (_) {}
-    if (!userExists) {
-      final token = await messaging.getToken();
-      await db.collection('users').doc(uid).set({
-        'id': uid,
-        'token': token,
-        'dev': !kReleaseMode,
-        'system':
-            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
-      });
-    }
+    if (userExists) return;
+    final hasPermission =
+        (await messaging.requestPermission()).authorizationStatus ==
+            AuthorizationStatus.authorized;
+    if (!hasPermission) return;
+    final token = await messaging.getToken();
+    await db.collection('users').doc(uid).set({
+      'id': uid,
+      'token': token,
+      'dev': !kReleaseMode,
+      'system':
+          '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+    });
   }
 
   @override

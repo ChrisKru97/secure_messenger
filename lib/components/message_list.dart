@@ -19,6 +19,7 @@ class _MessageListState extends State<MessageList> {
       .collection(collectionName)
       .orderBy('time', descending: true);
   final List<MessageData> messages = [];
+  Set messageIdsAdded = {};
   bool loading = true;
   DocumentSnapshot? lastDoc;
 
@@ -53,15 +54,14 @@ class _MessageListState extends State<MessageList> {
           .endBeforeDocument(snapshot.docs.first)
           .snapshots()
           .listen((event) {
-        final docsWithTime = event.docs.map((d) {
-          final data = d.data();
-          if (d['time'] == null) return null;
-          return MessageData.fromSnapshot(data, d.id);
-        }).whereType<MessageData>();
-        if (docsWithTime.isNotEmpty) {
-          messages.insertAll(0, docsWithTime);
-          if (mounted) setState(() {});
-        }
+        if (event.size == 0) return;
+        final firstDoc = event.docs.first;
+        final firstDocData = firstDoc.data();
+        if (firstDocData['time'] == null) return;
+        if (messageIdsAdded.contains(firstDoc.id)) return;
+        messageIdsAdded.add(firstDoc.id);
+        messages.insert(0, MessageData.fromSnapshot(firstDocData, firstDoc.id));
+        if (mounted) setState(() {});
       });
     });
   }
@@ -72,6 +72,7 @@ class _MessageListState extends State<MessageList> {
     return RefreshIndicator(
       onRefresh: readMore,
       child: ListView.separated(
+          key: UniqueKey(),
           separatorBuilder: (context, index) => const SizedBox(
                 height: 16,
               ),
@@ -81,7 +82,7 @@ class _MessageListState extends State<MessageList> {
           itemCount: messages.length,
           itemBuilder: (BuildContext context, int index) => MessageBubble(
               messages[index],
-              key: ValueKey(messages[index].time.millisecondsSinceEpoch))),
+              key: ValueKey(messages[index].id))),
     );
   }
 }
