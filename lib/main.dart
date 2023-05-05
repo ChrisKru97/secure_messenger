@@ -1,9 +1,11 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'components/message_input.dart';
 import 'components/message_list.dart';
 import 'consts.dart';
@@ -49,8 +51,6 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
-const tokenSetKey = '@tokenSet';
-
 class MyHomePage extends StatefulWidget {
   const MyHomePage({Key? key}) : super(key: key);
 
@@ -74,15 +74,21 @@ class _MyHomePageState extends State<MyHomePage> with WidgetsBindingObserver {
   }
 
   void setToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final hasSetToken = prefs.getBool(tokenSetKey);
-    if (hasSetToken != true) {
+    final uid = auth.currentUser?.uid;
+    if (uid == null) return;
+    bool userExists = false;
+    try {
+      userExists = (await db.collection('users').doc(uid).get()).exists;
+    } catch (_) {}
+    if (!userExists) {
       final token = await messaging.getToken();
-      await db
-          .collection("users")
-          .doc(auth.currentUser?.uid)
-          .set({"id": auth.currentUser?.uid, "token": token});
-      prefs.setBool(tokenSetKey, true);
+      await db.collection('users').doc(uid).set({
+        'id': uid,
+        'token': token,
+        'dev': !kReleaseMode,
+        'system':
+            '${Platform.operatingSystem} ${Platform.operatingSystemVersion}',
+      });
     }
   }
 

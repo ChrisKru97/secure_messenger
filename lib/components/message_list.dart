@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:secure_messenger/consts.dart';
 import 'package:secure_messenger/message_data.dart';
 import 'message_bubble.dart';
-import 'dart:math';
 
 const pageSize = 8;
 
@@ -18,15 +17,14 @@ class _MessageListState extends State<MessageList> {
   final Query<Map<String, dynamic>> orderedCollection = FirebaseFirestore
       .instance
       .collection(collectionName)
-      .orderBy("time", descending: true);
+      .orderBy('time', descending: true);
   final List<MessageData> messages = [];
   bool loading = true;
   DocumentSnapshot? lastDoc;
 
-  void addDocs(QuerySnapshot<Map<String, dynamic>> snapshot) {
-    messages
-        .addAll(snapshot.docs.map((d) => MessageData.fromSnapshot(d.data())));
-    lastDoc = snapshot.docs.last;
+  void addDocs(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    messages.addAll(docs.map((d) => MessageData.fromSnapshot(d.data(), d.id)));
+    lastDoc = docs.last;
     if (mounted) {
       setState(() {
         loading = false;
@@ -40,7 +38,7 @@ class _MessageListState extends State<MessageList> {
         .startAfterDocument(lastDoc!)
         .limit(pageSize)
         .get();
-    addDocs(moreDocs);
+    if (moreDocs.size > 0) addDocs(moreDocs.docs);
   }
 
   @override
@@ -49,15 +47,19 @@ class _MessageListState extends State<MessageList> {
     orderedCollection
         .limit(pageSize)
         .get()
-        .then((QuerySnapshot<Map<String, dynamic>> docs) {
-      addDocs(docs);
+        .then((QuerySnapshot<Map<String, dynamic>> snapshot) {
+      if (snapshot.size > 0) addDocs(snapshot.docs);
       orderedCollection
-          .endBeforeDocument(docs.docs.first)
+          .endBeforeDocument(snapshot.docs.first)
           .snapshots()
           .listen((event) {
-        if (event.docs.isNotEmpty) {
-          messages.insertAll(
-              0, event.docs.map((d) => MessageData.fromSnapshot(d.data())));
+        final docsWithTime = event.docs.map((d) {
+          final data = d.data();
+          if (d['time'] == null) return null;
+          return MessageData.fromSnapshot(data, d.id);
+        }).whereType<MessageData>();
+        if (docsWithTime.isNotEmpty) {
+          messages.insertAll(0, docsWithTime);
           if (mounted) setState(() {});
         }
       });
@@ -75,10 +77,11 @@ class _MessageListState extends State<MessageList> {
               ),
           reverse: true,
           padding: const EdgeInsets.all(16)
-              .copyWith(top: max(MediaQuery.of(context).padding.top, 16)),
+              .copyWith(top: MediaQuery.of(context).padding.top + 16),
           itemCount: messages.length,
-          itemBuilder: (BuildContext context, int index) =>
-              MessageBubble(messages[index])),
+          itemBuilder: (BuildContext context, int index) => MessageBubble(
+              messages[index],
+              key: ValueKey(messages[index].time.millisecondsSinceEpoch))),
     );
   }
 }

@@ -1,7 +1,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="cz.krutsche.messenger">
    <application
-        android:label="messenger"
+        android:label="Ch + K"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

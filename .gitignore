@@ -52,3 +52,4 @@ google-services.json
 GoogleService-Info.plist
 lib/firebase_options.dart
 ios/firebase_app_id_file.json
+.env

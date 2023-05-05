@@ -111,8 +111,10 @@ class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
                                     focusNode: pinFocusNode,
                                     keyboardType: TextInputType.number,
                                     controller: pinEditingController,
-                                    decoration:
-                                        const InputDecoration(hintText: 'Pin'),
+                                    obscureText: true,
+                                    decoration: const InputDecoration(
+                                      hintText: 'Pin',
+                                    ),
                                   ),
                                 ),
                               ),
