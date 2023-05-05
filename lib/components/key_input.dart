@@ -1,30 +1,43 @@
 import 'package:flutter/material.dart';
-import 'package:messenger/components/custom_icon_button.dart';
+import 'package:secure_messenger/consts.dart';
+import 'custom_icon_button.dart';
 
 class KeyInput extends StatefulWidget {
-  const KeyInput(this.setKey, {Key? key}) : super(key: key);
-  final void Function(String) setKey;
+  const KeyInput(this.setUnlocked, {Key? key}) : super(key: key);
+  final void Function() setUnlocked;
 
   @override
   State<KeyInput> createState() => _KeyInputState();
 }
 
 class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
-  final TextEditingController textEditingController = TextEditingController();
-  final FocusNode focusNode = FocusNode();
-  String? keyToSubmit;
+  final TextEditingController pinEditingController = TextEditingController();
+  final TextEditingController keyEditingController = TextEditingController();
+  final FocusNode pinFocusNode = FocusNode();
+  final FocusNode keyFocusNode = FocusNode();
+  String? pin;
+  String? key;
 
   void focus() {
     Future.delayed(const Duration(milliseconds: 250), () {
-      focusNode.requestFocus();
+      final hasKey = getKey()?.isNotEmpty == true;
+      if (hasKey) {
+        pinFocusNode.requestFocus();
+      } else {
+        keyFocusNode.requestFocus();
+      }
     });
   }
 
   @override
   void didChangeMetrics() {
     final value = WidgetsBinding.instance.window.viewInsets.bottom;
-    if (value == 0 && keyToSubmit?.isNotEmpty == true) {
-      widget.setKey(keyToSubmit!);
+    if (value == 0) {
+      if (key?.isNotEmpty == true) setKey(key!);
+      if (pin?.isNotEmpty == true) {
+        setPin(pin!);
+        widget.setUnlocked();
+      }
     }
   }
 
@@ -48,44 +61,64 @@ class _KeyInputState extends State<KeyInput> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  void onSubmitText(String text) {
-    if (text.isNotEmpty) {
-      focusNode.unfocus();
-      textEditingController.clear();
+  void onSubmitText(String nextPin, String nextKey) {
+    if (nextPin.isNotEmpty) {
+      pinFocusNode.unfocus();
+      keyFocusNode.unfocus();
+      keyEditingController.clear();
+      pinEditingController.clear();
       setState(() {
-        keyToSubmit = text;
+        pin = nextPin;
+        key = nextKey;
       });
     }
   }
 
   void onSubmit() {
-    onSubmitText(textEditingController.text);
+    onSubmitText(pinEditingController.text, keyEditingController.text);
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasKey = getKey()?.isNotEmpty == true;
     return Scaffold(
         body: SafeArea(
             child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 12),
-                          child: TextField(
-                            onSubmitted: onSubmitText,
-                            focusNode: focusNode,
-                            keyboardType: TextInputType.number,
-                            controller: textEditingController,
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (!hasKey)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: TextField(
+                                onSubmitted: (_) => pinFocusNode.requestFocus(),
+                                decoration:
+                                    const InputDecoration(hintText: 'Key'),
+                                controller: keyEditingController,
+                                focusNode: keyFocusNode,
+                              ),
+                            ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: TextField(
+                                    onSubmitted: (_) => onSubmit(),
+                                    focusNode: pinFocusNode,
+                                    keyboardType: TextInputType.number,
+                                    controller: pinEditingController,
+                                    decoration:
+                                        const InputDecoration(hintText: 'Pin'),
+                                  ),
+                                ),
+                              ),
+                              CustomIconButton(onSubmit, Icons.check)
+                            ],
                           ),
-                        ),
-                      ),
-                      CustomIconButton(onSubmit, Icons.check)
-                    ],
-                  ),
-                ))));
+                        ])))));
   }
 }

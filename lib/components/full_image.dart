@@ -13,8 +13,9 @@ class FullImage extends StatelessWidget {
             child: Center(
                 child: Hero(
                     tag: imageUrl,
-                    child: Image.memory(
+                    child: InteractiveViewer(
+                        child: Image.memory(
                       imageData,
-                    )))));
+                    ))))));
   }
 }

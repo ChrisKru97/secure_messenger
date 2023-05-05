@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:messenger/components/message_bubble.dart';
+import 'package:secure_messenger/consts.dart';
+import 'package:secure_messenger/message_data.dart';
+import 'message_bubble.dart';
+import 'dart:math';
 
-const pageSize = 10;
+const pageSize = 8;
 
 class MessageList extends StatefulWidget {
   const MessageList({Key? key}) : super(key: key);
@@ -14,18 +17,27 @@ class MessageList extends StatefulWidget {
 class _MessageListState extends State<MessageList> {
   final Query<Map<String, dynamic>> orderedCollection = FirebaseFirestore
       .instance
-      .collection("messages")
+      .collection(collectionName)
       .orderBy("time", descending: true);
-  final List<QueryDocumentSnapshot<Map<String, dynamic>>> messages = [];
+  final List<MessageData> messages = [];
+  bool loading = true;
+  DocumentSnapshot? lastDoc;
 
-  void addDocs(QuerySnapshot<Map<String, dynamic>> docs) {
-    messages.addAll(docs.docs);
-    setState(() {});
+  void addDocs(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    messages
+        .addAll(snapshot.docs.map((d) => MessageData.fromSnapshot(d.data())));
+    lastDoc = snapshot.docs.last;
+    if (mounted) {
+      setState(() {
+        loading = false;
+      });
+    }
   }
 
   Future<void> readMore() async {
+    if (lastDoc == null) return;
     final moreDocs = await orderedCollection
-        .startAfterDocument(messages.last)
+        .startAfterDocument(lastDoc!)
         .limit(pageSize)
         .get();
     addDocs(moreDocs);
@@ -43,11 +55,10 @@ class _MessageListState extends State<MessageList> {
           .endBeforeDocument(docs.docs.first)
           .snapshots()
           .listen((event) {
-        if (event.size == 0) return;
-        final newDoc = event.docs.first;
-        if (newDoc.data()["time"] != null) {
-          messages.insert(0, newDoc);
-          setState(() {});
+        if (event.docs.isNotEmpty) {
+          messages.insertAll(
+              0, event.docs.map((d) => MessageData.fromSnapshot(d.data())));
+          if (mounted) setState(() {});
         }
       });
     });
@@ -55,28 +66,19 @@ class _MessageListState extends State<MessageList> {
 
   @override
   Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator());
     return RefreshIndicator(
       onRefresh: readMore,
-      child: ListView.builder(
+      child: ListView.separated(
+          separatorBuilder: (context, index) => const SizedBox(
+                height: 16,
+              ),
           reverse: true,
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16)
+              .copyWith(top: max(MediaQuery.of(context).padding.top, 16)),
           itemCount: messages.length,
-          findChildIndexCallback: (Key key) {
-            if (key is ValueKey) {
-              return messages.indexWhere((element) => element.id == key.value);
-            }
-            return 0;
-          },
-          itemBuilder: (BuildContext context, int index) {
-            final key = Key(messages[index].id);
-            if (index != 0) {
-              return Container(
-                  key: key,
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: MessageBubble(messages[index].data()));
-            }
-            return MessageBubble(messages[index].data(), key: key);
-          }),
+          itemBuilder: (BuildContext context, int index) =>
+              MessageBubble(messages[index])),
     );
   }
 }

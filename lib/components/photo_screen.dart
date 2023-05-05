@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,9 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:messenger/components/custom_icon_button.dart';
-import 'package:messenger/consts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'custom_icon_button.dart';
+import '../consts.dart';
 
 class PhotoScreen extends StatefulWidget {
   const PhotoScreen({Key? key}) : super(key: key);
@@ -27,6 +26,8 @@ class _PhotoScreenState extends State<PhotoScreen> {
   int selectedCamera = 0;
   bool uploading = false;
   bool uploaded = false;
+  bool captured = false;
+  XFile? pictureData;
 
   void initializeCamera(int index) async {
     cameras = await availableCameras();
@@ -55,28 +56,46 @@ class _PhotoScreenState extends State<PhotoScreen> {
     super.dispose();
   }
 
-  void capturePicture() async {
+  void savePicture() async {
     final pin = getPin();
-    if (pin == null) return;
-    final file = await controller.takePicture();
+    final key = getKey();
+    final author = auth.currentUser?.uid;
+    if (pin == null || key == null || pictureData == null || author == null) {
+      return;
+    }
     setState(() {
       uploading = true;
     });
-    final bytes = await file.readAsBytes();
-    final encrypted = await compute(encryptBytes, BytesWithPin(bytes, pin));
-    final task = storage.ref().child(file.name).putData(encrypted);
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString(file.name, base64Encode(encrypted));
+    final bytes = await pictureData!.readAsBytes();
+    final encrypted =
+        await compute(encryptBytes, BytesWithPin(bytes, pin, key));
+    final task = storage.ref().child(pictureData!.name).putData(encrypted);
+    // final prefs = await SharedPreferences.getInstance();
+    // prefs.setString(pictureData!.name, base64Encode(encrypted));
     task.whenComplete(() async {
-      await db.collection("messages").add({
+      await db.collection(collectionName).add({
         'time': FieldValue.serverTimestamp(),
-        'image': file.name,
-        'author': auth.currentUser?.uid,
+        'image': pictureData!.name,
+        'author': author,
       });
       setState(() {
         uploading = false;
         uploaded = true;
       });
+    });
+  }
+
+  void capturePicture() async {
+    pictureData = await controller.takePicture();
+    setState(() {
+      captured = true;
+    });
+  }
+
+  void recapture() async {
+    pictureData = null;
+    setState(() {
+      captured = false;
     });
   }
 
@@ -101,13 +120,23 @@ class _PhotoScreenState extends State<PhotoScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(flex: 5, child: CameraPreview(controller)),
+            Expanded(
+                flex: 5,
+                child: captured
+                    ? Image.file(File(pictureData!.path))
+                    : CameraPreview(controller)),
             Expanded(
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  CustomIconButton(switchCamera, Icons.switch_camera),
-                  CustomIconButton(capturePicture, Icons.camera),
+                  if (captured)
+                    CustomIconButton(recapture, Icons.replay)
+                  else
+                    CustomIconButton(switchCamera, Icons.switch_camera),
+                  if (captured)
+                    CustomIconButton(savePicture, Icons.send)
+                  else
+                    CustomIconButton(capturePicture, Icons.camera),
                   CustomIconButton(() {
                     Navigator.pop(context);
                   }, Icons.arrow_back),

@@ -13,7 +13,7 @@ class CustomIconButton extends StatelessWidget {
             color: Colors.blueAccent[100],
             borderRadius: const BorderRadius.all(Radius.circular(50))),
         child: IconButton(
-          splashRadius: 1,
+            splashRadius: 1,
             onPressed: onPressed,
             icon: Icon(icon),
             color: Colors.white));

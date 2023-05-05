@@ -40,6 +40,9 @@ dependencies:
   firebase_auth: ^4.4.2
   firebase_core: ^2.10.0
   firebase_storage: ^11.1.1
+  encrypt: ^5.0.1
+  shared_preferences: ^2.1.0
+  camera: ^0.10.5
 
 dev_dependencies:
   flutter_test:
